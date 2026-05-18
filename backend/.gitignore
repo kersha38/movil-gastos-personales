@@ -1,0 +1,19 @@
+# CDK / Node.js
+cdk/node_modules/
+cdk/dist/
+cdk/cdk.out/
+
+# Go
+functions/vendor/
+functions/*.test
+
+# AWS CDK context (contains account/region specifics, not for CI)
+cdk/cdk.context.json
+
+# macOS
+.DS_Store
+
+# Environment / secrets
+.env
+*.env
+*.pem

@@ -1,0 +1,21 @@
+{
+  "name": "gastos-backend",
+  "version": "0.1.0",
+  "bin": { "backend": "bin/backend.js" },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "synth": "npx cdk synth",
+    "deploy": "npx cdk deploy"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.170.0",
+    "constructs": "^10.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "aws-cdk": "2.170.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.0.0"
+  }
+}
