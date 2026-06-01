@@ -76,6 +76,6 @@ class Gasto {
         'porcentajeParticipante2': porcentajeParticipante2,
         'esRecurrente': esRecurrente,
         'perteneceAlSri': perteneceAlSri,
-        'timestamp': timestamp.toIso8601String(),
+        'timestamp': timestamp.toUtc().toIso8601String(),
       };
 }

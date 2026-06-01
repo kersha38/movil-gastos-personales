@@ -63,29 +63,35 @@ class _MesSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            tooltip: 'Mes anterior',
-            onPressed: () => notifier.cambiarMes(-1),
-          ),
-          Text(
-            '${_meses[notifier.selectedMes - 1]} ${notifier.selectedAnio}',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            tooltip: 'Mes siguiente',
-            onPressed: () => notifier.cambiarMes(1),
-          ),
-        ],
+    final cs = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: cs.primary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: Icon(Icons.chevron_left, color: cs.onPrimary),
+              tooltip: 'Mes anterior',
+              onPressed: () => notifier.cambiarMes(-1),
+            ),
+            Text(
+              '${_meses[notifier.selectedMes - 1]} ${notifier.selectedAnio}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: cs.onPrimary,
+                  ),
+            ),
+            IconButton(
+              icon: Icon(Icons.chevron_right, color: cs.onPrimary),
+              tooltip: 'Mes siguiente',
+              onPressed: () => notifier.cambiarMes(1),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,7 +4,7 @@ import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 
 class ApiClient {
-  static const String baseUrl = 'https://api.example.com';
+  static const String baseUrl = 'https://wud4c4eu2a.execute-api.us-east-1.amazonaws.com/prod';
 
   final http.Client _client;
 

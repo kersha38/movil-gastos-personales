@@ -30,12 +30,14 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		gasto.Timestamp = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	ts, err := time.Parse(time.RFC3339, gasto.Timestamp)
+	ts, err := time.Parse(time.RFC3339Nano, gasto.Timestamp)
 	if err != nil {
 		ts = time.Now().UTC()
 		gasto.Timestamp = ts.Format(time.RFC3339)
 	}
-	gasto.YearMonth = fmt.Sprintf("%04d-%02d", ts.Year(), ts.Month())
+	quito := time.FixedZone("ECT", -5*60*60)
+	tsLocal := ts.In(quito)
+	gasto.YearMonth = fmt.Sprintf("%04d-%02d", tsLocal.Year(), tsLocal.Month())
 
 	cfg, err2 := config.LoadDefaultConfig(ctx, config.WithRegion(os.Getenv("REGION")))
 	if err2 != nil {

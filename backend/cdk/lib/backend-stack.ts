@@ -48,18 +48,23 @@ export class BackendStack extends cdk.Stack {
     // Helper to create a Go Lambda function
     const makeGoFn = (id: string, handlerPath: string): lambda.Function => {
       return new lambda.Function(this, id, {
+        functionName: `gastos-${handlerPath.replace('/', '-')}`,
         runtime: lambda.Runtime.PROVIDED_AL2023,
         architecture: lambda.Architecture.ARM_64,
         handler: 'bootstrap',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../functions'), {
           bundling: {
             image: lambda.Runtime.PROVIDED_AL2023.bundlingImage,
+            environment: {
+              GOCACHE: '/tmp/go-build',
+              GOPATH: '/tmp/go',
+            },
             command: [
               'bash',
               '-c',
               [
                 'cd /asset-input',
-                `GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o /asset-output/bootstrap ./${handlerPath}/`,
+                `GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -mod=vendor -tags lambda.norpc -o /asset-output/bootstrap ./${handlerPath}/`,
               ].join(' && '),
             ],
           },

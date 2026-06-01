@@ -191,6 +191,11 @@ class _GastoFormPageState extends State<GastoFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final dropdownStyle = TextStyle(
+      color: cs.onSurface,
+      fontWeight: FontWeight.w500,
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nuevo gasto'),
@@ -256,6 +261,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
                         child: DropdownButtonFormField<Categoria>(
                           key: ValueKey(_categoriaSeleccionada?.id),
                           initialValue: _categoriaSeleccionada,
+                          style: dropdownStyle,
                           decoration: const InputDecoration(
                             labelText: 'Categoría',
                           ),
@@ -263,7 +269,10 @@ class _GastoFormPageState extends State<GastoFormPage> {
                               .map(
                                 (c) => DropdownMenuItem(
                                   value: c,
-                                  child: Text(c.nombre),
+                                  child: Text(
+                                    c.nombre,
+                                    style: dropdownStyle,
+                                  ),
                                 ),
                               )
                               .toList(),
@@ -285,12 +294,16 @@ class _GastoFormPageState extends State<GastoFormPage> {
                   DropdownButtonFormField<Participante>(
                     key: ValueKey(_pagadorSeleccionado?.id),
                     initialValue: _pagadorSeleccionado,
+                    style: dropdownStyle,
                     decoration: const InputDecoration(labelText: 'Quién pagó'),
                     items: _participantes
                         .map(
                           (p) => DropdownMenuItem(
                             value: p,
-                            child: Text(p.nombre),
+                            child: Text(
+                              p.nombre,
+                              style: dropdownStyle,
+                            ),
                           ),
                         )
                         .toList(),
