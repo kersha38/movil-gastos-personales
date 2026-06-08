@@ -26,6 +26,9 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	}
 
 	gasto.ID = uuid.NewString()
+	gasto.Verificado = false
+	gasto.VerificadoPor = ""
+
 	if gasto.Timestamp == "" {
 		gasto.Timestamp = time.Now().UTC().Format(time.RFC3339)
 	}
@@ -56,6 +59,36 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	})
 	if err != nil {
 		return shared.ErrResponse(500, "error saving gasto")
+	}
+
+	// If recurring, create a template in gastos-mensuales
+	if gasto.EsRecurrente {
+		plantilla := shared.GastoMensual{
+			ID:                      uuid.NewString(),
+			Tipo:                    "plantilla",
+			Monto:                   gasto.Monto,
+			Descripcion:             gasto.Descripcion,
+			CategoriaID:             gasto.CategoriaID,
+			CategoriaNombre:         gasto.CategoriaNombre,
+			PagadorID:               gasto.PagadorID,
+			PagadorNombre:           gasto.PagadorNombre,
+			Participante1ID:         gasto.Participante1ID,
+			Participante1Nombre:     gasto.Participante1Nombre,
+			Participante2ID:         gasto.Participante2ID,
+			Participante2Nombre:     gasto.Participante2Nombre,
+			EsCompartido:            gasto.EsCompartido,
+			PorcentajeParticipante1: gasto.PorcentajeParticipante1,
+			PorcentajeParticipante2: gasto.PorcentajeParticipante2,
+			PerteneceAlSri:          gasto.PerteneceAlSri,
+			CreadoEn:                gasto.Timestamp,
+		}
+		plantillaItem, merr := attributevalue.MarshalMap(plantilla)
+		if merr == nil {
+			_, _ = svc.PutItem(ctx, &dynamodb.PutItemInput{
+				TableName: strPtr(os.Getenv("GASTOS_MENSUALES_TABLE")),
+				Item:      plantillaItem,
+			})
+		}
 	}
 
 	return shared.CreatedResponse(gasto)

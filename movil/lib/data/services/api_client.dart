@@ -48,6 +48,17 @@ class ApiClient {
     return jsonDecode(response.body);
   }
 
+  Future<dynamic> delete(String path) async {
+    final uri = Uri.parse('$baseUrl$path');
+    developer.log('DELETE $uri', name: 'ApiClient');
+    final response = await _client.delete(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+    );
+    _checkStatus(response);
+    return jsonDecode(response.body);
+  }
+
   void _checkStatus(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('HTTP ${response.statusCode}: ${response.body}');

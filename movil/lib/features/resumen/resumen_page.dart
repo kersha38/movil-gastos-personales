@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -132,12 +131,12 @@ class _ResumenContent extends StatelessWidget {
       children: [
         _TotalCard(total: resumen.totalMes),
         const SizedBox(height: AppSpacing.sm),
-        _BalanceCard(balance: resumen.balance),
+        _DeudaCard(balance: resumen.balance),
         const SizedBox(height: AppSpacing.sm),
-        if (resumen.gastosPorCategoria.isNotEmpty) ...[
-          _PieChartCard(categorias: resumen.gastosPorCategoria),
+        _GastosPorPersonaCard(balance: resumen.balance),
+        if (resumen.transferencias.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
-          _CategoriasList(categorias: resumen.gastosPorCategoria),
+          _TransferenciasCard(transferencias: resumen.transferencias, balance: resumen.balance),
         ],
         const SizedBox(height: AppSpacing.lg),
       ],
@@ -180,49 +179,118 @@ class _TotalCard extends StatelessWidget {
   }
 }
 
-class _BalanceCard extends StatelessWidget {
+class _DeudaCard extends StatelessWidget {
   final Balance balance;
 
-  const _BalanceCard({required this.balance});
+  const _DeudaCard({required this.balance});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    String deudor, acreedor;
+    double monto;
+    bool alDia = false;
+
+    if (balance.montoDebeP1 > 0) {
+      deudor = balance.participante1Nombre;
+      acreedor = balance.participante2Nombre;
+      monto = balance.montoDebeP1;
+    } else if (balance.montoDebeP2 > 0) {
+      deudor = balance.participante2Nombre;
+      acreedor = balance.participante1Nombre;
+      monto = balance.montoDebeP2;
+    } else {
+      deudor = '';
+      acreedor = '';
+      monto = 0;
+      alDia = true;
+    }
+
+    final color = alDia ? cs.tertiaryContainer : cs.errorContainer;
+    final onColor = alDia ? cs.onTertiaryContainer : cs.onErrorContainer;
+
+    return Card(
+      color: color,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Icon(
+              alDia ? Icons.check_circle_outline : Icons.account_balance_wallet_outlined,
+              color: onColor,
+              size: 28,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Saldo', style: tt.labelLarge?.copyWith(color: onColor)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    alDia
+                        ? 'Están al día'
+                        : '$deudor debe \$${monto.toStringAsFixed(2)} a $acreedor',
+                    style: tt.bodyMedium?.copyWith(
+                      color: onColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (!alDia && (balance.transferenciasP1aP2 > 0 || balance.transferenciasP2aP1 > 0))
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(
+                        'Incluye transferencias realizadas',
+                        style: tt.bodySmall?.copyWith(color: onColor.withValues(alpha: 0.8)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GastosPorPersonaCard extends StatelessWidget {
+  final Balance balance;
+
+  const _GastosPorPersonaCard({required this.balance});
 
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-
-    String mensaje;
-    if (balance.montoDebeP1 > 0) {
-      mensaje =
-          '${balance.participante1Nombre} debe \$${balance.montoDebeP1.toStringAsFixed(2)} a ${balance.participante2Nombre}';
-    } else if (balance.montoDebeP2 > 0) {
-      mensaje =
-          '${balance.participante2Nombre} debe \$${balance.montoDebeP2.toStringAsFixed(2)} a ${balance.participante1Nombre}';
-    } else {
-      mensaje = 'Están al día';
-    }
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Balance', style: tt.titleMedium),
-            const SizedBox(height: AppSpacing.sm),
-            Text(mensaje, style: tt.bodyMedium),
-            const SizedBox(height: AppSpacing.sm),
+            Text('Desglose por participante', style: tt.titleMedium),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
-                  child: _ParticipantePago(
+                  child: _PersonaColumn(
                     nombre: balance.participante1Nombre,
-                    monto: balance.montoPagadoP1,
+                    totalPagado: balance.montoPagadoP1,
+                    individual: balance.gastoIndividualP1,
+                    compartido: balance.gastoCompartidoP1,
+                    sri: balance.gastoSriP1,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: _ParticipantePago(
+                  child: _PersonaColumn(
                     nombre: balance.participante2Nombre,
-                    monto: balance.montoPagadoP2,
+                    totalPagado: balance.montoPagadoP2,
+                    individual: balance.gastoIndividualP2,
+                    compartido: balance.gastoCompartidoP2,
+                    sri: balance.gastoSriP2,
                   ),
                 ),
               ],
@@ -234,11 +302,20 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-class _ParticipantePago extends StatelessWidget {
+class _PersonaColumn extends StatelessWidget {
   final String nombre;
-  final double monto;
+  final double totalPagado;
+  final double individual;
+  final double compartido;
+  final double sri;
 
-  const _ParticipantePago({required this.nombre, required this.monto});
+  const _PersonaColumn({
+    required this.nombre,
+    required this.totalPagado,
+    required this.individual,
+    required this.compartido,
+    required this.sri,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -253,72 +330,93 @@ class _ParticipantePago extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(nombre, style: tt.labelMedium),
           Text(
-            '\$${monto.toStringAsFixed(2)}',
+            nombre,
+            style: tt.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '\$${totalPagado.toStringAsFixed(2)}',
             style: tt.titleSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: AppSpacing.xs),
+          _Row(label: 'Individual', monto: individual),
+          _Row(label: 'Compartido', monto: compartido),
+          if (sri > 0) _Row(label: 'SRI', monto: sri),
         ],
       ),
     );
   }
 }
 
-class _PieChartCard extends StatelessWidget {
-  final List<ResumenCategoria> categorias;
+class _Row extends StatelessWidget {
+  final String label;
+  final double monto;
 
-  const _PieChartCard({required this.categorias});
-
-  static const _chartColors = [
-    Color(0xFF6750A4),
-    Color(0xFF7B61FF),
-    Color(0xFF03DAC6),
-    Color(0xFFFF6B6B),
-    Color(0xFFFFB347),
-    Color(0xFF4CAF50),
-    Color(0xFF2196F3),
-    Color(0xFFE91E63),
-  ];
+  const _Row({required this.label, required this.monto});
 
   @override
   Widget build(BuildContext context) {
-    final sections = categorias.asMap().entries.map((entry) {
-      final i = entry.key;
-      final cat = entry.value;
-      return PieChartSectionData(
-        value: cat.total,
-        color: _chartColors[i % _chartColors.length],
-        title: '${cat.porcentaje.toStringAsFixed(0)}%',
-        radius: 80,
-        titleStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      );
-    }).toList();
+    final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+          Text('\$${monto.toStringAsFixed(2)}',
+              style: tt.bodySmall),
+        ],
+      ),
+    );
+  }
+}
 
+class _TransferenciasCard extends StatelessWidget {
+  final List transferencias;
+  final Balance balance;
+
+  const _TransferenciasCard({
+    required this.transferencias,
+    required this.balance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Por categoría',
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              children: [
+                const Icon(Icons.swap_horiz, size: 18),
+                const SizedBox(width: AppSpacing.xs),
+                Text('Transferencias', style: tt.titleMedium),
+              ],
             ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sections: sections,
-                  centerSpaceRadius: 40,
-                  sectionsSpace: 2,
-                ),
+            const SizedBox(height: AppSpacing.sm),
+            if (balance.transferenciasP1aP2 > 0)
+              _TransRow(
+                label:
+                    '${balance.participante1Nombre} → ${balance.participante2Nombre}',
+                monto: balance.transferenciasP1aP2,
+                color: cs.primary,
               ),
-            ),
+            if (balance.transferenciasP2aP1 > 0)
+              _TransRow(
+                label:
+                    '${balance.participante2Nombre} → ${balance.participante1Nombre}',
+                monto: balance.transferenciasP2aP1,
+                color: cs.secondary,
+              ),
           ],
         ),
       ),
@@ -326,58 +424,42 @@ class _PieChartCard extends StatelessWidget {
   }
 }
 
-class _CategoriasList extends StatelessWidget {
-  final List<ResumenCategoria> categorias;
+class _TransRow extends StatelessWidget {
+  final String label;
+  final double monto;
+  final Color color;
 
-  const _CategoriasList({required this.categorias});
-
-  static const _chartColors = [
-    Color(0xFF6750A4),
-    Color(0xFF7B61FF),
-    Color(0xFF03DAC6),
-    Color(0xFFFF6B6B),
-    Color(0xFFFFB347),
-    Color(0xFF4CAF50),
-    Color(0xFF2196F3),
-    Color(0xFFE91E63),
-  ];
+  const _TransRow({
+    required this.label,
+    required this.monto,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    return Card(
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: categorias.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final cat = categorias[index];
-          final color = _chartColors[index % _chartColors.length];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.2),
-              child: Icon(Icons.circle, color: color, size: 12),
-            ),
-            title: Text(cat.categoriaNombre),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Row(
               children: [
-                Text(
-                  '\$${cat.total.toStringAsFixed(2)}',
-                  style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '${cat.porcentaje.toStringAsFixed(1)}%',
-                  style: tt.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                Icon(Icons.arrow_forward, size: 14, color: color),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(label,
+                      style: tt.bodySmall, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
-          );
-        },
+          ),
+          Text(
+            '\$${monto.toStringAsFixed(2)}',
+            style: tt.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
