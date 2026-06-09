@@ -27,12 +27,14 @@ class GastosNotifier extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final results = await Future.wait([
-        _repo.getGastos(selectedMes, selectedAnio),
-        _trRepo.getTransferencias(selectedMes, selectedAnio),
-      ]);
-      gastos = results[0] as List<Gasto>;
-      transferencias = results[1] as List<Transferencia>;
+      final gastosResult = await _repo.getGastos(selectedMes, selectedAnio);
+      gastos = gastosResult;
+      // Transferencias es opcional — si el backend aún no tiene el endpoint no bloquea
+      try {
+        transferencias = await _trRepo.getTransferencias(selectedMes, selectedAnio);
+      } catch (_) {
+        transferencias = [];
+      }
     } catch (e, s) {
       developer.log(
         'Error cargando gastos',
