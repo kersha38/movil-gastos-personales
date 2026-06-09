@@ -4,6 +4,9 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -217,6 +220,38 @@ export class BackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.url,
       description: 'API Gateway URL — update ApiClient.baseUrl in the Flutter app',
+    });
+
+    // ─── S3 + CloudFront para Flutter Web ────────────────────────────────────
+
+    const webBucket = new s3.Bucket(this, 'WebBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+    });
+
+    const webDistribution = new cloudfront.Distribution(this, 'WebDistribution', {
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(webBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      defaultRootObject: 'index.html',
+      // SPA routing: 403/404 desde S3 → sirve index.html → Flutter maneja la ruta
+      errorResponses: [
+        { httpStatus: 403, responseHttpStatus: 200, responsePagePath: '/index.html' },
+        { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html' },
+      ],
+    });
+
+    new cdk.CfnOutput(this, 'WebBucketName', {
+      value: webBucket.bucketName,
+      description: 'Sube el build web: aws s3 sync movil/build/web/ s3://BUCKET/ --delete',
+    });
+
+    new cdk.CfnOutput(this, 'WebUrl', {
+      value: `https://${webDistribution.distributionDomainName}`,
+      description: 'URL pública de la app web (CloudFront HTTPS)',
     });
   }
 }
