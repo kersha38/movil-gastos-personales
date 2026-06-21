@@ -58,6 +58,30 @@ for cat in "Alimentación" "Transporte" "Vivienda" "Salud" "Entretenimiento" "Ed
 done
 ```
 
+## Build y publicar la versión web (S3 + CloudFront)
+
+El stack ya crea un bucket S3 privado y una distribución CloudFront que lo sirve por HTTPS. Tras el deploy se imprimen los outputs `WebBucketName` y `WebUrl`.
+
+```bash
+# 1. Generar el build web de Flutter
+cd movil
+flutter build web --release
+
+# 2. Subir el build al bucket (reemplaza BUCKET por el output WebBucketName)
+aws s3 sync build/web/ s3://BUCKET/ --delete
+```
+
+Si no tienes los outputs a mano:
+```bash
+aws cloudformation describe-stacks --stack-name GastosBackendStack --query "Stacks[0].Outputs"
+```
+
+La app queda disponible en la URL del output `WebUrl`. Si CloudFront sirve una versión en caché del build anterior, invalida la distribución:
+```bash
+aws cloudfront list-distributions --query "DistributionList.Items[].{Id:Id,Domain:DomainName}"
+aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"
+```
+
 ## API Reference
 
 | Method | Path | Description |

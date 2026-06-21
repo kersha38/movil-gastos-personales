@@ -81,6 +81,18 @@ Después del primer `cdk deploy`, actualiza la URL base en:
 movil/lib/data/services/api_client.dart → ApiClient.baseUrl
 ```
 
+### 4. Publicar la versión web (S3 + CloudFront)
+
+El stack del backend ya crea un bucket S3 y una distribución CloudFront para servir el build web.
+
+```bash
+cd movil
+flutter build web --release
+aws s3 sync build/web/ s3://<WebBucketName>/ --delete
+```
+
+`WebBucketName` y `WebUrl` son outputs del stack — ver `backend/README.md` para más detalle (incluye cómo invalidar la caché de CloudFront).
+
 ## Decisiones de diseño relevantes
 
 - **Sin autenticación por ahora**: los dos participantes son fijos (`p1` y `p2`). Sus nombres se configuran localmente en la app (Settings) y se sincronizan con el backend vía `PUT /participantes/{id}`.

@@ -67,3 +67,14 @@ Cada subcarpeta tiene su propio `CLAUDE.md` con instrucciones específicas. Ábr
 3. Actualizar `movil/lib/data/services/api_client.dart` → `ApiClient.baseUrl`
 4. Seed de DynamoDB — ver `backend/CLAUDE.md`
 5. `cd movil && flutter run`
+
+## Publicar la versión web (S3 + CloudFront)
+
+El stack ya crea el bucket S3 y la distribución CloudFront (outputs `WebBucketName` y `WebUrl`).
+
+```bash
+cd movil && flutter build web --release
+aws s3 sync build/web/ s3://<WebBucketName>/ --delete
+```
+
+Detalle completo (incluyendo invalidación de caché de CloudFront) en `backend/CLAUDE.md`.
