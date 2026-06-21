@@ -37,6 +37,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
   final _montoController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _nuevaCategoriaController = TextEditingController();
+  final _nuevaCategoriaEmojiController = TextEditingController();
   final _montoP1Controller = TextEditingController();
   final _montoP2Controller = TextEditingController();
 
@@ -69,6 +70,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
     _montoController.dispose();
     _descripcionController.dispose();
     _nuevaCategoriaController.dispose();
+    _nuevaCategoriaEmojiController.dispose();
     _montoP1Controller.dispose();
     _montoP2Controller.dispose();
     super.dispose();
@@ -175,15 +177,32 @@ class _GastoFormPageState extends State<GastoFormPage> {
 
   Future<void> _mostrarDialogNuevaCategoria() async {
     _nuevaCategoriaController.clear();
+    _nuevaCategoriaEmojiController.text = emojiPorDefecto;
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Nueva categoría'),
-        content: TextField(
-          controller: _nuevaCategoriaController,
-          decoration: const InputDecoration(labelText: 'Nombre'),
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 64,
+              child: TextField(
+                controller: _nuevaCategoriaEmojiController,
+                decoration: const InputDecoration(labelText: 'Emoji'),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: _nuevaCategoriaController,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -202,8 +221,10 @@ class _GastoFormPageState extends State<GastoFormPage> {
         _nuevaCategoriaController.text.trim().isNotEmpty &&
         mounted) {
       try {
-        final nueva = await _categoriasRepo
-            .crearCategoria(_nuevaCategoriaController.text.trim());
+        final nueva = await _categoriasRepo.crearCategoria(
+          _nuevaCategoriaController.text.trim(),
+          emoji: _nuevaCategoriaEmojiController.text,
+        );
         setState(() {
           _categorias.add(nueva);
           _categoriaSeleccionada = nueva;
@@ -390,7 +411,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
                                 (c) => DropdownMenuItem(
                                   value: c,
                                   child: Text(
-                                    c.nombre,
+                                    '${c.emoji} ${c.nombre}',
                                     style: dropdownStyle,
                                   ),
                                 ),

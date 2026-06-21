@@ -20,6 +20,8 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _montoController = TextEditingController();
   final _descripcionController = TextEditingController();
+  final _montoP1Controller = TextEditingController();
+  final _montoP2Controller = TextEditingController();
 
   final _catRepo = CategoriasRepository();
   final _partRepo = ParticipantesRepository();
@@ -33,10 +35,12 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
   bool _perteneceAlSri = false;
   bool _cargando = true;
   bool _guardando = false;
+  bool _sincronizandoMontos = false;
 
   @override
   void initState() {
     super.initState();
+    _montoController.addListener(_onMontoTotalChanged);
     if (widget.initial != null) {
       final gm = widget.initial!;
       _montoController.text = gm.monto.toString();
@@ -52,6 +56,8 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
   void dispose() {
     _montoController.dispose();
     _descripcionController.dispose();
+    _montoP1Controller.dispose();
+    _montoP2Controller.dispose();
     super.dispose();
   }
 
@@ -79,6 +85,7 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
           }
           _cargando = false;
         });
+        _actualizarMontosDesdePorcentaje();
       }
     } catch (_) {
       if (mounted) setState(() => _cargando = false);
@@ -86,6 +93,53 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
   }
 
   double get _porcentaje2 => 100 - _porcentaje1;
+
+  double get _montoTotal =>
+      double.tryParse(_montoController.text.replaceAll(',', '.')) ?? 0;
+
+  void _onMontoTotalChanged() {
+    if (_sincronizandoMontos || !_esCompartido) return;
+    _actualizarMontosDesdePorcentaje();
+  }
+
+  void _actualizarMontosDesdePorcentaje() {
+    _sincronizandoMontos = true;
+    final total = _montoTotal;
+    final monto1 = total * _porcentaje1 / 100;
+    final monto2 = total - monto1;
+    _montoP1Controller.text = total > 0 ? monto1.toStringAsFixed(2) : '';
+    _montoP2Controller.text = total > 0 ? monto2.toStringAsFixed(2) : '';
+    _sincronizandoMontos = false;
+  }
+
+  void _onPorcentajeCambiado(double v) {
+    setState(() => _porcentaje1 = v);
+    _actualizarMontosDesdePorcentaje();
+  }
+
+  void _onMontoP1Cambiado(String value) {
+    if (_sincronizandoMontos) return;
+    final total = _montoTotal;
+    final monto1 = double.tryParse(value.replaceAll(',', '.'));
+    if (total <= 0 || monto1 == null) return;
+    final monto1Clamped = monto1.clamp(0, total);
+    _sincronizandoMontos = true;
+    setState(() => _porcentaje1 = (monto1Clamped / total) * 100);
+    _montoP2Controller.text = (total - monto1Clamped).toStringAsFixed(2);
+    _sincronizandoMontos = false;
+  }
+
+  void _onMontoP2Cambiado(String value) {
+    if (_sincronizandoMontos) return;
+    final total = _montoTotal;
+    final monto2 = double.tryParse(value.replaceAll(',', '.'));
+    if (total <= 0 || monto2 == null) return;
+    final monto2Clamped = monto2.clamp(0, total);
+    _sincronizandoMontos = true;
+    setState(() => _porcentaje1 = ((total - monto2Clamped) / total) * 100);
+    _montoP1Controller.text = (total - monto2Clamped).toStringAsFixed(2);
+    _sincronizandoMontos = false;
+  }
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
@@ -206,7 +260,7 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
                     items: _categorias
                         .map((c) => DropdownMenuItem(
                               value: c,
-                              child: Text(c.nombre, style: dropdownStyle),
+                              child: Text('${c.emoji} ${c.nombre}', style: dropdownStyle),
                             ))
                         .toList(),
                     onChanged: (v) =>
@@ -237,8 +291,10 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
                     child: SwitchListTile(
                       title: const Text('Gasto compartido'),
                       value: _esCompartido,
-                      onChanged: (v) =>
-                          setState(() => _esCompartido = v),
+                      onChanged: (v) {
+                        setState(() => _esCompartido = v);
+                        if (v) _actualizarMontosDesdePorcentaje();
+                      },
                     ),
                   ),
                   if (_esCompartido) ...[
@@ -269,8 +325,7 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
                               min: 0,
                               max: 100,
                               divisions: 20,
-                              onChanged: (v) =>
-                                  setState(() => _porcentaje1 = v),
+                              onChanged: _onPorcentajeCambiado,
                             ),
                             Row(
                               mainAxisAlignment:
@@ -280,6 +335,49 @@ class _PagoMensualFormPageState extends State<PagoMensualFormPage> {
                                     ? _participantes[1].nombre
                                     : 'P2'),
                                 Text('${_porcentaje2.round()}%'),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Text(
+                              'O ingresa el monto de cada uno',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _montoP1Controller,
+                                    decoration: InputDecoration(
+                                      labelText: _participantes.isNotEmpty
+                                          ? _participantes[0].nombre
+                                          : 'P1',
+                                      prefixText: '\$ ',
+                                    ),
+                                    keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                    onChanged: _onMontoP1Cambiado,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _montoP2Controller,
+                                    decoration: InputDecoration(
+                                      labelText: _participantes.length > 1
+                                          ? _participantes[1].nombre
+                                          : 'P2',
+                                      prefixText: '\$ ',
+                                    ),
+                                    keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                    onChanged: _onMontoP2Cambiado,
+                                  ),
+                                ),
                               ],
                             ),
                           ],

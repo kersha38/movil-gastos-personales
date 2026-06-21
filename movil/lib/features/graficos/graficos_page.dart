@@ -16,12 +16,87 @@ class GraficosPage extends StatefulWidget {
 
 class _GraficosPageState extends State<GraficosPage> {
   int? _touched;
+  Set<String> _categoriaIdsFiltro = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback(
         (_) => widget.notifier.cargar());
+  }
+
+  List<ResumenCategoria> _filtrarYRecalcular(List<ResumenCategoria> todas) {
+    if (_categoriaIdsFiltro.isEmpty) return todas;
+    final filtradas = todas
+        .where((c) => _categoriaIdsFiltro.contains(c.categoriaId))
+        .toList();
+    final totalFiltrado = filtradas.fold<double>(0, (s, c) => s + c.total);
+    if (totalFiltrado <= 0) return filtradas;
+    return filtradas
+        .map((c) => ResumenCategoria(
+              categoriaId: c.categoriaId,
+              categoriaNombre: c.categoriaNombre,
+              total: c.total,
+              porcentaje: (c.total / totalFiltrado) * 100,
+            ))
+        .toList();
+  }
+
+  Future<void> _mostrarFiltroCategorias(List<ResumenCategoria> disponibles) async {
+    var seleccion = Set<String>.from(_categoriaIdsFiltro);
+    final resultado = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Filtrar por categoría',
+                        style: Theme.of(ctx).textTheme.titleMedium),
+                    TextButton(
+                      onPressed: () => setSheetState(() => seleccion.clear()),
+                      child: const Text('Limpiar'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: disponibles.map((c) {
+                    final activo = seleccion.contains(c.categoriaId);
+                    return FilterChip(
+                      label: Text(c.categoriaNombre),
+                      selected: activo,
+                      onSelected: (v) => setSheetState(() {
+                        if (v) {
+                          seleccion.add(c.categoriaId);
+                        } else {
+                          seleccion.remove(c.categoriaId);
+                        }
+                      }),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, seleccion),
+                  child: const Text('Aplicar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (resultado != null) setState(() => _categoriaIdsFiltro = resultado);
   }
 
   @override
@@ -31,12 +106,28 @@ class _GraficosPageState extends State<GraficosPage> {
       builder: (context, _) {
         final notifier = widget.notifier;
         return Scaffold(
-          appBar: AppBar(title: const Text('Gráficos')),
+          appBar: AppBar(
+            title: const Text('Gráficos'),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  _categoriaIdsFiltro.isEmpty
+                      ? Icons.filter_list_outlined
+                      : Icons.filter_list,
+                ),
+                tooltip: 'Filtrar por categoría',
+                onPressed: notifier.categorias.isEmpty
+                    ? null
+                    : () => _mostrarFiltroCategorias(notifier.categorias),
+              ),
+            ],
+          ),
           body: Column(
             children: [
               _MesSelector(notifier: notifier),
               Expanded(child: _Body(
                 notifier: notifier,
+                categorias: _filtrarYRecalcular(notifier.categorias),
                 touched: _touched,
                 onTouch: (i) => setState(() => _touched = i),
               )),
@@ -91,11 +182,13 @@ class _MesSelector extends StatelessWidget {
 
 class _Body extends StatelessWidget {
   final GraficosNotifier notifier;
+  final List<ResumenCategoria> categorias;
   final int? touched;
   final ValueChanged<int?> onTouch;
 
   const _Body({
     required this.notifier,
+    required this.categorias,
     required this.touched,
     required this.onTouch,
   });
@@ -130,8 +223,11 @@ class _Body extends StatelessWidget {
     if (notifier.categorias.isEmpty) {
       return const Center(child: Text('Sin gastos en este mes'));
     }
+    if (categorias.isEmpty) {
+      return const Center(child: Text('Sin gastos para esta categoría'));
+    }
     return _GraficosContent(
-      categorias: notifier.categorias,
+      categorias: categorias,
       touched: touched,
       onTouch: onTouch,
     );

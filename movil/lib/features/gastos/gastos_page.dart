@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../data/models/categoria.dart';
 import '../../data/models/gasto.dart';
 import '../../data/models/transferencia.dart';
+import '../../data/repositories/categorias_repository.dart';
 import '../settings/settings_notifier.dart';
 import 'gasto_form_page.dart';
 import 'gastos_notifier.dart';
@@ -25,10 +27,81 @@ class GastosPage extends StatefulWidget {
 }
 
 class _GastosPageState extends State<GastosPage> {
+  final _categoriasRepo = CategoriasRepository();
+  List<Categoria> _categorias = [];
+  Set<String> _categoriaIdsFiltro = {};
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => widget.notifier.cargar());
+    _cargarCategorias();
+  }
+
+  Future<void> _cargarCategorias() async {
+    try {
+      final cats = await _categoriasRepo.getCategorias();
+      if (mounted) setState(() => _categorias = cats);
+    } catch (_) {
+      // El filtro es secundario — si falla, simplemente no se muestra.
+    }
+  }
+
+  Future<void> _mostrarFiltroCategorias() async {
+    var seleccion = Set<String>.from(_categoriaIdsFiltro);
+    final resultado = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Filtrar por categoría',
+                        style: Theme.of(ctx).textTheme.titleMedium),
+                    TextButton(
+                      onPressed: () => setSheetState(() => seleccion.clear()),
+                      child: const Text('Limpiar'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: _categorias.map((c) {
+                    final activo = seleccion.contains(c.id);
+                    return FilterChip(
+                      label: Text('${c.emoji} ${c.nombre}'),
+                      selected: activo,
+                      onSelected: (v) => setSheetState(() {
+                        if (v) {
+                          seleccion.add(c.id);
+                        } else {
+                          seleccion.remove(c.id);
+                        }
+                      }),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, seleccion),
+                  child: const Text('Aplicar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (resultado != null) setState(() => _categoriaIdsFiltro = resultado);
   }
 
   Future<void> _editarGasto(GastosNotifier notifier, Gasto gasto) async {
@@ -76,6 +149,15 @@ class _GastosPageState extends State<GastosPage> {
             title: const Text('Gastos'),
             actions: [
               IconButton(
+                icon: Icon(
+                  _categoriaIdsFiltro.isEmpty
+                      ? Icons.filter_list_outlined
+                      : Icons.filter_list,
+                ),
+                tooltip: 'Filtrar por categoría',
+                onPressed: _mostrarFiltroCategorias,
+              ),
+              IconButton(
                 icon: const Icon(Icons.swap_horiz_outlined),
                 tooltip: 'Nueva transferencia',
                 onPressed: _agregarTransferencia,
@@ -98,6 +180,7 @@ class _GastosPageState extends State<GastosPage> {
               Expanded(child: _Body(
                 notifier: notifier,
                 miParticipanteId: widget.settingsNotifier.miParticipanteId,
+                categoriaIdsFiltro: _categoriaIdsFiltro,
                 onEditar: (gasto) => _editarGasto(notifier, gasto),
               )),
             ],
@@ -163,11 +246,13 @@ class _MesSelector extends StatelessWidget {
 class _Body extends StatelessWidget {
   final GastosNotifier notifier;
   final String miParticipanteId;
+  final Set<String> categoriaIdsFiltro;
   final void Function(Gasto gasto) onEditar;
 
   const _Body({
     required this.notifier,
     required this.miParticipanteId,
+    required this.categoriaIdsFiltro,
     required this.onEditar,
   });
 
@@ -183,9 +268,19 @@ class _Body extends StatelessWidget {
       return const Center(child: Text('No hay gastos en este mes'));
     }
 
-    // Merge gastos and transferencias sorted by timestamp desc
+    final gastosFiltrados = categoriaIdsFiltro.isEmpty
+        ? notifier.gastos
+        : notifier.gastos
+            .where((g) => categoriaIdsFiltro.contains(g.categoriaId))
+            .toList();
+
+    if (gastosFiltrados.isEmpty && notifier.transferencias.isEmpty) {
+      return const Center(child: Text('Sin gastos para esta categoría'));
+    }
+
+    // Merge gastos y transferencias ordenados por fecha desc
     final items = <_ListItem>[];
-    for (final g in notifier.gastos) {
+    for (final g in gastosFiltrados) {
       items.add(_ListItem.gasto(g));
     }
     for (final t in notifier.transferencias) {

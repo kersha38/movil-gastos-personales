@@ -13,9 +13,10 @@ class CategoriasRepository {
         .toList();
   }
 
-  Future<Categoria> crearCategoria(String nombre) async {
+  Future<Categoria> crearCategoria(String nombre, {String? emoji}) async {
     final data = await _client.post('/categorias', {
       'nombre': nombre,
+      'emoji': emoji?.trim().isNotEmpty == true ? emoji!.trim() : emojiPorDefecto,
       'esPredefinida': false,
     });
     return Categoria.fromJson(data as Map<String, dynamic>);
