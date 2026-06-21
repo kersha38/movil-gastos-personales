@@ -80,6 +80,15 @@ class GastosNotifier extends ChangeNotifier {
     }
   }
 
+  Future<void> actualizarGasto(Gasto gasto) async {
+    final actualizado = await _repo.actualizarGasto(gasto);
+    final idx = gastos.indexWhere((g) => g.id == actualizado.id);
+    if (idx != -1) {
+      gastos[idx] = actualizado;
+      notifyListeners();
+    }
+  }
+
   Future<void> crearTransferencia(Transferencia t) async {
     await _trRepo.crearTransferencia(t);
     await cargar();

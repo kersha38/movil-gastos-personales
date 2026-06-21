@@ -5,6 +5,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../data/models/gasto.dart';
 import '../../data/models/transferencia.dart';
 import '../settings/settings_notifier.dart';
+import 'gasto_form_page.dart';
 import 'gastos_notifier.dart';
 import 'transferencia_form_page.dart';
 import 'widgets/gasto_tile.dart';
@@ -28,6 +29,17 @@ class _GastosPageState extends State<GastosPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => widget.notifier.cargar());
+  }
+
+  Future<void> _editarGasto(GastosNotifier notifier, Gasto gasto) async {
+    final editado = await context.push<bool>(
+      '/gastos/nuevo',
+      extra: GastoFormArgs(
+        settingsNotifier: widget.settingsNotifier,
+        gasto: gasto,
+      ),
+    );
+    if (editado == true) notifier.cargar();
   }
 
   Future<void> _agregarTransferencia() async {
@@ -86,6 +98,7 @@ class _GastosPageState extends State<GastosPage> {
               Expanded(child: _Body(
                 notifier: notifier,
                 miParticipanteId: widget.settingsNotifier.miParticipanteId,
+                onEditar: (gasto) => _editarGasto(notifier, gasto),
               )),
             ],
           ),
@@ -93,7 +106,7 @@ class _GastosPageState extends State<GastosPage> {
             onPressed: () async {
               final creado = await context.push<bool>(
                 '/gastos/nuevo',
-                extra: widget.settingsNotifier,
+                extra: GastoFormArgs(settingsNotifier: widget.settingsNotifier),
               );
               if (creado == true) notifier.cargar();
             },
@@ -150,8 +163,13 @@ class _MesSelector extends StatelessWidget {
 class _Body extends StatelessWidget {
   final GastosNotifier notifier;
   final String miParticipanteId;
+  final void Function(Gasto gasto) onEditar;
 
-  const _Body({required this.notifier, required this.miParticipanteId});
+  const _Body({
+    required this.notifier,
+    required this.miParticipanteId,
+    required this.onEditar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -194,6 +212,7 @@ class _Body extends StatelessWidget {
               v,
               miParticipanteId,
             ),
+            onTap: () => onEditar(item.gasto!),
           );
         }
         return _TransferenciaTile(

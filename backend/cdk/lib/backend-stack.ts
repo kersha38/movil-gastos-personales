@@ -122,6 +122,7 @@ export class BackendStack extends cdk.Stack {
     const fnPartUpdate       = makeGoFn('ParticipantesUpdateFn',  'participantes/update');
     const fnGastosList       = makeGoFn('GastosListFn',           'gastos/list');
     const fnGastosCreate     = makeGoFn('GastosCreateFn',         'gastos/create');
+    const fnGastosUpdate     = makeGoFn('GastosUpdateFn',         'gastos/update');
     const fnGastosVerificar  = makeGoFn('GastosVerificarFn',      'gastos/verificar');
     const fnResumen          = makeGoFn('ResumenFn',               'resumen/get');
     const fnTrList           = makeGoFn('TransferenciasListFn',   'transferencias/list');
@@ -142,6 +143,7 @@ export class BackendStack extends cdk.Stack {
     gastosTable.grantReadData(fnGastosList);
     gastosTable.grantReadWriteData(fnGastosCreate);
     gastosMensualesTable.grantReadWriteData(fnGastosCreate);
+    gastosTable.grantReadWriteData(fnGastosUpdate);
     gastosTable.grantReadWriteData(fnGastosVerificar);
     gastosTable.grantReadData(fnResumen);
     categoriasTable.grantReadData(fnResumen);
@@ -195,6 +197,7 @@ export class BackendStack extends cdk.Stack {
     gastos.addMethod('GET',  li(fnGastosList));
     gastos.addMethod('POST', li(fnGastosCreate));
     const gastoById = gastos.addResource('{id}');
+    gastoById.addMethod('PUT', li(fnGastosUpdate));
     const verificar = gastoById.addResource('verificar');
     verificar.addMethod('PUT', li(fnGastosVerificar));
 

@@ -22,6 +22,7 @@ backend/
     ├── participantes/update/ # PUT /participantes/{id}
     ├── gastos/list/        # GET /gastos?mes=&anio=
     ├── gastos/create/      # POST /gastos
+    ├── gastos/update/      # PUT /gastos/{id}
     └── resumen/get/        # GET /resumen?mes=&anio=
 ```
 
@@ -47,6 +48,7 @@ Todos los endpoints tienen CORS configurado (`Access-Control-Allow-Origin: *`). 
 | PUT | `/participantes/{id}` | `participantes/update` |
 | GET | `/gastos?mes=5&anio=2026` | `gastos/list` |
 | POST | `/gastos` | `gastos/create` |
+| PUT | `/gastos/{id}` | `gastos/update` |
 | GET | `/resumen?mes=5&anio=2026` | `resumen/get` |
 
 ## Go Lambdas — convenciones

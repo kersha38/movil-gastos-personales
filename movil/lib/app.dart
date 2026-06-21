@@ -70,11 +70,18 @@ class _AppState extends State<App> {
                   routes: [
                     GoRoute(
                       path: 'nuevo',
-                      builder: (_, state) => GastoFormPage(
-                        settingsNotifier:
-                            state.extra as SettingsNotifier? ??
-                            widget.settingsNotifier,
-                      ),
+                      builder: (_, state) {
+                        final extra = state.extra;
+                        if (extra is GastoFormArgs) {
+                          return GastoFormPage(
+                            settingsNotifier: extra.settingsNotifier,
+                            gastoExistente: extra.gasto,
+                          );
+                        }
+                        return GastoFormPage(
+                          settingsNotifier: widget.settingsNotifier,
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -113,12 +120,17 @@ class _AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Gastos Personales',
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: _router,
+    return ListenableBuilder(
+      listenable: widget.settingsNotifier,
+      builder: (context, _) {
+        return MaterialApp.router(
+          title: 'Gastos Personales',
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          themeMode: widget.settingsNotifier.themeMode,
+          routerConfig: _router,
+        );
+      },
     );
   }
 }

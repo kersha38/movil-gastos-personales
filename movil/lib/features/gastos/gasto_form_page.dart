@@ -9,10 +9,24 @@ import '../../data/repositories/gastos_repository.dart';
 import '../../data/repositories/participantes_repository.dart';
 import '../settings/settings_notifier.dart';
 
+class GastoFormArgs {
+  final SettingsNotifier settingsNotifier;
+  final Gasto? gasto;
+
+  const GastoFormArgs({required this.settingsNotifier, this.gasto});
+}
+
 class GastoFormPage extends StatefulWidget {
   final SettingsNotifier settingsNotifier;
+  final Gasto? gastoExistente;
 
-  const GastoFormPage({super.key, required this.settingsNotifier});
+  const GastoFormPage({
+    super.key,
+    required this.settingsNotifier,
+    this.gastoExistente,
+  });
+
+  bool get esEdicion => gastoExistente != null;
 
   @override
   State<GastoFormPage> createState() => _GastoFormPageState();
@@ -23,6 +37,8 @@ class _GastoFormPageState extends State<GastoFormPage> {
   final _montoController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _nuevaCategoriaController = TextEditingController();
+  final _montoP1Controller = TextEditingController();
+  final _montoP2Controller = TextEditingController();
 
   final _categoriasRepo = CategoriasRepository();
   final _participantesRepo = ParticipantesRepository();
@@ -32,6 +48,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
   List<Participante> _participantes = [];
   bool _cargando = true;
   bool _guardando = false;
+  bool _sincronizandoMontos = false;
 
   Categoria? _categoriaSeleccionada;
   Participante? _pagadorSeleccionado;
@@ -43,6 +60,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
   @override
   void initState() {
     super.initState();
+    _montoController.addListener(_onMontoTotalChanged);
     _cargarDatos();
   }
 
@@ -51,6 +69,8 @@ class _GastoFormPageState extends State<GastoFormPage> {
     _montoController.dispose();
     _descripcionController.dispose();
     _nuevaCategoriaController.dispose();
+    _montoP1Controller.dispose();
+    _montoP2Controller.dispose();
     super.dispose();
   }
 
@@ -64,11 +84,37 @@ class _GastoFormPageState extends State<GastoFormPage> {
         setState(() {
           _categorias = results[0] as List<Categoria>;
           _participantes = results[1] as List<Participante>;
-          if (_participantes.isNotEmpty) {
+
+          final existente = widget.gastoExistente;
+          if (existente != null) {
+            _montoController.text = existente.monto.toStringAsFixed(2);
+            _descripcionController.text = existente.descripcion;
+            _categoriaSeleccionada = _categorias.firstWhere(
+              (c) => c.id == existente.categoriaId,
+              orElse: () => _categorias.isNotEmpty
+                  ? _categorias.first
+                  : Categoria(
+                      id: existente.categoriaId,
+                      nombre: existente.categoriaNombre,
+                      esPredefinida: false,
+                    ),
+            );
+            _pagadorSeleccionado = _participantes.firstWhere(
+              (p) => p.id == existente.pagadorId,
+              orElse: () => _participantes.isNotEmpty
+                  ? _participantes.first
+                  : Participante(id: existente.pagadorId, nombre: existente.pagadorNombre),
+            );
+            _esCompartido = existente.esCompartido;
+            _porcentaje1 = existente.porcentajeParticipante1;
+            _esRecurrente = existente.esRecurrente;
+            _perteneceAlSri = existente.perteneceAlSri;
+          } else if (_participantes.isNotEmpty) {
             _pagadorSeleccionado = _participantes.first;
           }
           _cargando = false;
         });
+        _actualizarMontosDesdePorcentaje();
       }
     } catch (_) {
       if (mounted) setState(() => _cargando = false);
@@ -77,8 +123,55 @@ class _GastoFormPageState extends State<GastoFormPage> {
 
   double get _porcentaje2 => 100 - _porcentaje1;
 
+  double get _montoTotal =>
+      double.tryParse(_montoController.text.replaceAll(',', '.')) ?? 0;
+
   String get _nombreP1 => widget.settingsNotifier.nombreP1;
   String get _nombreP2 => widget.settingsNotifier.nombreP2;
+
+  void _onMontoTotalChanged() {
+    if (_sincronizandoMontos || !_esCompartido) return;
+    _actualizarMontosDesdePorcentaje();
+  }
+
+  void _actualizarMontosDesdePorcentaje() {
+    _sincronizandoMontos = true;
+    final total = _montoTotal;
+    final monto1 = total * _porcentaje1 / 100;
+    final monto2 = total - monto1;
+    _montoP1Controller.text = total > 0 ? monto1.toStringAsFixed(2) : '';
+    _montoP2Controller.text = total > 0 ? monto2.toStringAsFixed(2) : '';
+    _sincronizandoMontos = false;
+  }
+
+  void _onPorcentajeCambiado(double v) {
+    setState(() => _porcentaje1 = v);
+    _actualizarMontosDesdePorcentaje();
+  }
+
+  void _onMontoP1Cambiado(String value) {
+    if (_sincronizandoMontos) return;
+    final total = _montoTotal;
+    final monto1 = double.tryParse(value.replaceAll(',', '.'));
+    if (total <= 0 || monto1 == null) return;
+    final monto1Clamped = monto1.clamp(0, total);
+    _sincronizandoMontos = true;
+    setState(() => _porcentaje1 = (monto1Clamped / total) * 100);
+    _montoP2Controller.text = (total - monto1Clamped).toStringAsFixed(2);
+    _sincronizandoMontos = false;
+  }
+
+  void _onMontoP2Cambiado(String value) {
+    if (_sincronizandoMontos) return;
+    final total = _montoTotal;
+    final monto2 = double.tryParse(value.replaceAll(',', '.'));
+    if (total <= 0 || monto2 == null) return;
+    final monto2Clamped = monto2.clamp(0, total);
+    _sincronizandoMontos = true;
+    setState(() => _porcentaje1 = ((total - monto2Clamped) / total) * 100);
+    _montoP1Controller.text = (total - monto2Clamped).toStringAsFixed(2);
+    _sincronizandoMontos = false;
+  }
 
   Future<void> _mostrarDialogNuevaCategoria() async {
     _nuevaCategoriaController.clear();
@@ -170,10 +263,37 @@ class _GastoFormPageState extends State<GastoFormPage> {
         porcentajeParticipante2: _esCompartido ? _porcentaje2 : 0,
         esRecurrente: _esRecurrente,
         perteneceAlSri: _perteneceAlSri,
-        timestamp: DateTime.now(),
+        timestamp: widget.gastoExistente?.timestamp ?? DateTime.now(),
+        verificado: widget.gastoExistente?.verificado ?? false,
+        verificadoPor: widget.gastoExistente?.verificadoPor,
       );
 
-      await _gastosRepo.crearGasto(gasto);
+      if (widget.esEdicion) {
+        final gastoActualizado = Gasto(
+          id: widget.gastoExistente!.id,
+          monto: gasto.monto,
+          descripcion: gasto.descripcion,
+          categoriaId: gasto.categoriaId,
+          categoriaNombre: gasto.categoriaNombre,
+          pagadorId: gasto.pagadorId,
+          pagadorNombre: gasto.pagadorNombre,
+          participante1Id: gasto.participante1Id,
+          participante1Nombre: gasto.participante1Nombre,
+          participante2Id: gasto.participante2Id,
+          participante2Nombre: gasto.participante2Nombre,
+          esCompartido: gasto.esCompartido,
+          porcentajeParticipante1: gasto.porcentajeParticipante1,
+          porcentajeParticipante2: gasto.porcentajeParticipante2,
+          esRecurrente: gasto.esRecurrente,
+          perteneceAlSri: gasto.perteneceAlSri,
+          timestamp: gasto.timestamp,
+          verificado: gasto.verificado,
+          verificadoPor: gasto.verificadoPor,
+        );
+        await _gastosRepo.actualizarGasto(gastoActualizado);
+      } else {
+        await _gastosRepo.crearGasto(gasto);
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -198,7 +318,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nuevo gasto'),
+        title: Text(widget.esEdicion ? 'Editar gasto' : 'Nuevo gasto'),
         actions: [
           if (_guardando)
             const Padding(
@@ -322,7 +442,10 @@ class _GastoFormPageState extends State<GastoFormPage> {
                             : 'Solo un participante',
                       ),
                       value: _esCompartido,
-                      onChanged: (v) => setState(() => _esCompartido = v),
+                      onChanged: (v) {
+                        setState(() => _esCompartido = v);
+                        if (v) _actualizarMontosDesdePorcentaje();
+                      },
                     ),
                   ),
                   if (_esCompartido) ...[
@@ -350,14 +473,52 @@ class _GastoFormPageState extends State<GastoFormPage> {
                               min: 0,
                               max: 100,
                               divisions: 20,
-                              onChanged: (v) =>
-                                  setState(() => _porcentaje1 = v),
+                              onChanged: _onPorcentajeCambiado,
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(_nombreP2),
                                 Text('${_porcentaje2.round()}%'),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            Text(
+                              'O ingresa el monto de cada uno',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _montoP1Controller,
+                                    decoration: InputDecoration(
+                                      labelText: _nombreP1,
+                                      prefixText: '\$ ',
+                                    ),
+                                    keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                    onChanged: _onMontoP1Cambiado,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _montoP2Controller,
+                                    decoration: InputDecoration(
+                                      labelText: _nombreP2,
+                                      prefixText: '\$ ',
+                                    ),
+                                    keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                    onChanged: _onMontoP2Cambiado,
+                                  ),
+                                ),
                               ],
                             ),
                           ],

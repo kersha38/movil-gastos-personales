@@ -23,6 +23,7 @@ Cada subcarpeta tiene su propio `CLAUDE.md` con instrucciones específicas. Ábr
 | PUT | `/participantes/{id}` | Actualiza nombre |
 | GET | `/gastos?mes=5&anio=2026` | Lista gastos del mes |
 | POST | `/gastos` | Crea gasto |
+| PUT | `/gastos/{id}` | Actualiza gasto (reemplazo completo) |
 | GET | `/resumen?mes=5&anio=2026` | Resumen mensual |
 
 ## Modelo de datos principal — Gasto

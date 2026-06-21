@@ -98,6 +98,19 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: AppSpacing.md),
               _ParticipanteSelector(notifier: widget.notifier),
+              const SizedBox(height: AppSpacing.xl),
+              const Divider(),
+              const SizedBox(height: AppSpacing.md),
+              Text('Tema', style: tt.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Elige la apariencia de la app.',
+                style: tt.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _TemaSelector(notifier: widget.notifier),
             ],
           );
         },
@@ -133,6 +146,39 @@ class _ParticipanteSelector extends StatelessWidget {
           cs: cs,
         ),
       ],
+    );
+  }
+}
+
+class _TemaSelector extends StatelessWidget {
+  final SettingsNotifier notifier;
+
+  const _TemaSelector({required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<ThemeMode>(
+      segments: const [
+        ButtonSegment(
+          value: ThemeMode.light,
+          icon: Icon(Icons.light_mode_outlined),
+          label: Text('Claro'),
+        ),
+        ButtonSegment(
+          value: ThemeMode.dark,
+          icon: Icon(Icons.dark_mode_outlined),
+          label: Text('Oscuro'),
+        ),
+        ButtonSegment(
+          value: ThemeMode.system,
+          icon: Icon(Icons.brightness_auto_outlined),
+          label: Text('Automático'),
+        ),
+      ],
+      selected: {notifier.themeMode},
+      onSelectionChanged: (selection) {
+        notifier.cambiarTema(selection.first);
+      },
     );
   }
 }

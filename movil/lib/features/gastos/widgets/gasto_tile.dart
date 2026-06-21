@@ -7,12 +7,14 @@ class GastoTile extends StatelessWidget {
   final Gasto gasto;
   final String miParticipanteId;
   final Future<void> Function(bool verificado)? onVerificar;
+  final VoidCallback? onTap;
 
   const GastoTile({
     super.key,
     required this.gasto,
     this.miParticipanteId = '',
     this.onVerificar,
+    this.onTap,
   });
 
   bool get _puedeVerificar =>
@@ -69,6 +71,7 @@ class GastoTile extends StatelessWidget {
           ),
         ],
       ),
+      onTap: onTap,
       onLongPress: _puedeVerificar && onVerificar != null
           ? () => _mostrarMenuVerificar(context)
           : null,

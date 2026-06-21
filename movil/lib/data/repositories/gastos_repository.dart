@@ -21,6 +21,11 @@ class GastosRepository {
     return Gasto.fromJson(data as Map<String, dynamic>);
   }
 
+  Future<Gasto> actualizarGasto(Gasto gasto) async {
+    final data = await _client.put('/gastos/${gasto.id}', gasto.toJson());
+    return Gasto.fromJson(data as Map<String, dynamic>);
+  }
+
   Future<void> verificarGasto(
       String gastoId, bool verificado, String verificadoPor) async {
     await _client.put('/gastos/$gastoId/verificar', {
