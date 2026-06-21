@@ -58,28 +58,19 @@ for cat in "Alimentación" "Transporte" "Vivienda" "Salud" "Entretenimiento" "Ed
 done
 ```
 
-## Build y publicar la versión web (S3 + CloudFront)
+## Build y publicar la versión web (S3 + CloudFront, automático)
 
-El stack ya crea un bucket S3 privado y una distribución CloudFront que lo sirve por HTTPS. Tras el deploy se imprimen los outputs `WebBucketName` y `WebUrl`.
+`cdk deploy` ya hace todo el trabajo: compila `flutter build web --release` localmente (como parte del bundling del construct `WebDeployment`), sube el resultado al bucket S3 y crea una invalidación de CloudFront. Requiere tener el SDK de Flutter instalado en la máquina que ejecuta el deploy (no usa Docker para este paso).
 
 ```bash
-# 1. Generar el build web de Flutter
-cd movil
-flutter build web --release
-
-# 2. Subir el build al bucket (reemplaza BUCKET por el output WebBucketName)
-aws s3 sync build/web/ s3://BUCKET/ --delete
+cd cdk && npx cdk deploy
 ```
 
-Si no tienes los outputs a mano:
+Si el `flutter build web` falla, el deploy falla con un mensaje claro y no sube nada a medias.
+
+La app queda disponible en la URL del output `WebUrl`. Si no tienes los outputs a mano:
 ```bash
 aws cloudformation describe-stacks --stack-name GastosBackendStack --query "Stacks[0].Outputs"
-```
-
-La app queda disponible en la URL del output `WebUrl`. Si CloudFront sirve una versión en caché del build anterior, invalida la distribución:
-```bash
-aws cloudfront list-distributions --query "DistributionList.Items[].{Id:Id,Domain:DomainName}"
-aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"
 ```
 
 ## API Reference

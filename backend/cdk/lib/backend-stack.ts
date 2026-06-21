@@ -5,9 +5,11 @@ import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import { Construct } from 'constructs';
 
 export class BackendStack extends cdk.Stack {
@@ -255,6 +257,52 @@ export class BackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'WebUrl', {
       value: `https://${webDistribution.distributionDomainName}`,
       description: 'URL pública de la app web (CloudFront HTTPS)',
+    });
+
+    // ─── Build web de Flutter + subida automática a S3 ──────────────────────
+    // Corre `flutter build web` localmente (requiere el SDK de Flutter en
+    // la máquina que ejecuta `cdk deploy`) y sube el resultado al bucket,
+    // invalidando CloudFront para que el cambio se vea de inmediato.
+
+    const movilDir = path.join(__dirname, '../../../movil');
+
+    new s3deploy.BucketDeployment(this, 'WebDeployment', {
+      sources: [
+        s3deploy.Source.asset(movilDir, {
+          assetHashType: cdk.AssetHashType.OUTPUT,
+          bundling: {
+            local: {
+              tryBundle(outputDir: string): boolean {
+                try {
+                  execSync('flutter build web --release', {
+                    cwd: movilDir,
+                    stdio: 'inherit',
+                  });
+                } catch (err) {
+                  console.error('flutter build web falló — ¿está instalado Flutter en este equipo?', err);
+                  return false;
+                }
+                execSync(`cp -R "${path.join(movilDir, 'build', 'web')}/." "${outputDir}/"`);
+                return true;
+              },
+            },
+            image: cdk.DockerImage.fromRegistry('alpine:3'),
+            command: [
+              'sh', '-c',
+              'echo "No se pudo compilar Flutter Web localmente. Instala el SDK de Flutter y vuelve a intentar." && exit 1',
+            ],
+          },
+        }),
+      ],
+      destinationBucket: webBucket,
+      distribution: webDistribution,
+      distributionPaths: ['/*'],
+      // El build de Flutter web (~35-40MB descomprimido) excede la memoria
+      // default (128MB) del Lambda de BucketDeployment y causa
+      // Runtime.OutOfMemory — CloudFormation reintenta indefinidamente
+      // hasta agotar el timeout. Subir memoria y /tmp evita ese loop.
+      memoryLimit: 1024,
+      ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
   }
 }

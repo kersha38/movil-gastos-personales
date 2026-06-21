@@ -63,6 +63,7 @@ Cada subcarpeta tiene su propio `CLAUDE.md` con instrucciones específicas. Ábr
 ## Primer deploy — pasos en orden
 
 1. `cd backend/cdk && npm install && npx cdk bootstrap && npx cdk deploy`
+   - `cdk deploy` también compila `flutter build web --release` localmente, lo sube a S3 e invalida CloudFront — requiere el SDK de Flutter instalado en la máquina que despliega.
 2. Copiar la URL del output `GastosBackendStack.ApiUrl`
 3. Actualizar `movil/lib/data/services/api_client.dart` → `ApiClient.baseUrl`
 4. Seed de DynamoDB — ver `backend/CLAUDE.md`
@@ -70,11 +71,4 @@ Cada subcarpeta tiene su propio `CLAUDE.md` con instrucciones específicas. Ábr
 
 ## Publicar la versión web (S3 + CloudFront)
 
-El stack ya crea el bucket S3 y la distribución CloudFront (outputs `WebBucketName` y `WebUrl`).
-
-```bash
-cd movil && flutter build web --release
-aws s3 sync build/web/ s3://<WebBucketName>/ --delete
-```
-
-Detalle completo (incluyendo invalidación de caché de CloudFront) en `backend/CLAUDE.md`.
+Cada `cdk deploy` ya publica la versión web automáticamente (ver paso 1). Outputs relevantes: `WebBucketName` y `WebUrl`. Detalle completo en `backend/CLAUDE.md`.

@@ -99,20 +99,14 @@ done
 
 Tras el deploy, copiar la URL del output `GastosBackendStack.ApiUrl` al `ApiClient.baseUrl` en `movil/lib/data/services/api_client.dart`.
 
-## Build web + deploy a S3/CloudFront
+## Build web + deploy a S3/CloudFront (automático)
 
-El stack ya incluye un bucket S3 privado (`WebBucket`) servido vía CloudFront (`WebDistribution`), con outputs `WebBucketName` y `WebUrl`.
+`npx cdk deploy` ya hace todo el flujo: el construct `WebDeployment` (`BucketDeployment`) corre `flutter build web --release` localmente como parte del bundling del asset, sube el resultado al bucket (`WebBucket`) e invalida la distribución de CloudFront (`WebDistribution`) automáticamente. **Requiere tener el SDK de Flutter instalado en la máquina donde corres `cdk deploy`** (no usa Docker para este paso).
 
 ```bash
-cd movil
-flutter build web --release
-aws s3 sync build/web/ s3://<WebBucketName>/ --delete
+cd cdk && npx cdk deploy   # compila Flutter Web, sube a S3 e invalida CloudFront
 ```
 
-Si no tienes los outputs a mano: `aws cloudformation describe-stacks --stack-name GastosBackendStack --query "Stacks[0].Outputs"`.
+Si el build de Flutter falla, `cdk deploy` también falla con un mensaje claro — no sube nada a medias.
 
-Para invalidar la caché de CloudFront tras subir un build nuevo:
-```bash
-aws cloudfront list-distributions --query "DistributionList.Items[].{Id:Id,Domain:DomainName}"
-aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"
-```
+Outputs relevantes: `WebBucketName` y `WebUrl`. Si no los tienes a mano: `aws cloudformation describe-stacks --stack-name GastosBackendStack --query "Stacks[0].Outputs"`.

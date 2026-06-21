@@ -83,15 +83,7 @@ movil/lib/data/services/api_client.dart → ApiClient.baseUrl
 
 ### 4. Publicar la versión web (S3 + CloudFront)
 
-El stack del backend ya crea un bucket S3 y una distribución CloudFront para servir el build web.
-
-```bash
-cd movil
-flutter build web --release
-aws s3 sync build/web/ s3://<WebBucketName>/ --delete
-```
-
-`WebBucketName` y `WebUrl` son outputs del stack — ver `backend/README.md` para más detalle (incluye cómo invalidar la caché de CloudFront).
+Cada `cdk deploy` ya compila `flutter build web --release` y sube el resultado a S3 + invalida CloudFront automáticamente (requiere el SDK de Flutter instalado donde corres el deploy). `WebBucketName` y `WebUrl` son outputs del stack — ver `backend/README.md` para más detalle.
 
 ## Decisiones de diseño relevantes
 

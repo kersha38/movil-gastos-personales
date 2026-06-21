@@ -4,6 +4,7 @@ package shared
 type Categoria struct {
 	ID            string `json:"id" dynamodbav:"categoriaId"`
 	Nombre        string `json:"nombre" dynamodbav:"nombre"`
+	Emoji         string `json:"emoji" dynamodbav:"emoji"`
 	EsPredefinida bool   `json:"esPredefinida" dynamodbav:"esPredefinida"`
 }
 

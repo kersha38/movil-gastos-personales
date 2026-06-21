@@ -17,6 +17,7 @@ import (
 
 type createRequest struct {
 	Nombre        string `json:"nombre"`
+	Emoji         string `json:"emoji"`
 	EsPredefinida bool   `json:"esPredefinida"`
 }
 
@@ -26,9 +27,15 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 		return shared.ErrResponse(400, "nombre is required")
 	}
 
+	emoji := body.Emoji
+	if emoji == "" {
+		emoji = "💲"
+	}
+
 	categoria := shared.Categoria{
 		ID:            uuid.NewString(),
 		Nombre:        body.Nombre,
+		Emoji:         emoji,
 		EsPredefinida: body.EsPredefinida,
 	}
 
