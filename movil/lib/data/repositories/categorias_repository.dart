@@ -21,4 +21,16 @@ class CategoriasRepository {
     });
     return Categoria.fromJson(data as Map<String, dynamic>);
   }
+
+  Future<Categoria> actualizarCategoria(
+    String id,
+    String nombre, {
+    String? emoji,
+  }) async {
+    final data = await _client.put('/categorias/$id', {
+      'nombre': nombre,
+      'emoji': emoji?.trim().isNotEmpty == true ? emoji!.trim() : emojiPorDefecto,
+    });
+    return Categoria.fromJson(data as Map<String, dynamic>);
+  }
 }

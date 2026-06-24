@@ -120,6 +120,7 @@ export class BackendStack extends cdk.Stack {
 
     const fnCategList        = makeGoFn('CategoriasListFn',       'categorias/list');
     const fnCategCreate      = makeGoFn('CategoriasCreateFn',     'categorias/create');
+    const fnCategUpdate      = makeGoFn('CategoriasUpdateFn',     'categorias/update');
     const fnPartList         = makeGoFn('ParticipantesListFn',    'participantes/list');
     const fnPartUpdate       = makeGoFn('ParticipantesUpdateFn',  'participantes/update');
     const fnGastosList       = makeGoFn('GastosListFn',           'gastos/list');
@@ -140,6 +141,7 @@ export class BackendStack extends cdk.Stack {
 
     categoriasTable.grantReadData(fnCategList);
     categoriasTable.grantReadWriteData(fnCategCreate);
+    categoriasTable.grantReadWriteData(fnCategUpdate);
     participantesTable.grantReadData(fnPartList);
     participantesTable.grantReadWriteData(fnPartUpdate);
     gastosTable.grantReadData(fnGastosList);
@@ -187,6 +189,8 @@ export class BackendStack extends cdk.Stack {
     const categorias = api.root.addResource('categorias');
     categorias.addMethod('GET',  li(fnCategList));
     categorias.addMethod('POST', li(fnCategCreate));
+    const categoriaById = categorias.addResource('{id}');
+    categoriaById.addMethod('PUT', li(fnCategUpdate));
 
     // /participantes + /participantes/{id}
     const participantes = api.root.addResource('participantes');

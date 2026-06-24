@@ -9,6 +9,14 @@ flutter pub get
 flutter run
 ```
 
+## Generar el APK de Android
+
+```bash
+flutter build apk --release
+```
+
+El APK queda en `build/app/outputs/flutter-apk/app-release.apk`.
+
 ## Arquitectura
 
 ```

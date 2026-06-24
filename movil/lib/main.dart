@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'features/gastos/gastos_notifier.dart';
@@ -9,6 +10,7 @@ import 'features/settings/settings_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('es');
   final settingsNotifier = SettingsNotifier();
   final gastosNotifier = GastosNotifier();
   final resumenNotifier = ResumenNotifier();

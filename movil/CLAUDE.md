@@ -73,6 +73,7 @@ flutter pub get          # instalar dependencias
 flutter run              # correr en dispositivo/emulador
 flutter analyze          # linter — debe pasar con 0 issues
 flutter test             # tests
+flutter build apk --release   # genera el APK en build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ## Dependencias principales

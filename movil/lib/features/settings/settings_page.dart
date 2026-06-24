@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../data/models/categoria.dart';
+import '../../data/repositories/categorias_repository.dart';
 import 'settings_notifier.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -111,6 +113,19 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: AppSpacing.md),
               _TemaSelector(notifier: widget.notifier),
+              const SizedBox(height: AppSpacing.xl),
+              const Divider(),
+              const SizedBox(height: AppSpacing.md),
+              Text('Categorías', style: tt.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Edita el nombre o emoji de una categoría existente.',
+                style: tt.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const _CategoriasEditor(),
             ],
           );
         },
@@ -179,6 +194,123 @@ class _TemaSelector extends StatelessWidget {
       onSelectionChanged: (selection) {
         notifier.cambiarTema(selection.first);
       },
+    );
+  }
+}
+
+class _CategoriasEditor extends StatefulWidget {
+  const _CategoriasEditor();
+
+  @override
+  State<_CategoriasEditor> createState() => _CategoriasEditorState();
+}
+
+class _CategoriasEditorState extends State<_CategoriasEditor> {
+  final _categoriasRepo = CategoriasRepository();
+  List<Categoria> _categorias = [];
+  bool _cargando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    try {
+      final categorias = await _categoriasRepo.getCategorias();
+      if (mounted) setState(() => _categorias = categorias);
+    } finally {
+      if (mounted) setState(() => _cargando = false);
+    }
+  }
+
+  Future<void> _editar(Categoria categoria) async {
+    final nombreController = TextEditingController(text: categoria.nombre);
+    final emojiController = TextEditingController(text: categoria.emoji);
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar categoría'),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 64,
+              child: TextField(
+                controller: emojiController,
+                decoration: const InputDecoration(labelText: 'Emoji'),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || nombreController.text.trim().isEmpty) return;
+    try {
+      final actualizada = await _categoriasRepo.actualizarCategoria(
+        categoria.id,
+        nombreController.text.trim(),
+        emoji: emojiController.text,
+      );
+      if (mounted) {
+        setState(() {
+          _categorias = _categorias
+              .map((c) => c.id == actualizada.id ? actualizada : c)
+              .toList();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar categoría: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_cargando) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      children: _categorias
+          .map(
+            (c) => Card(
+              child: ListTile(
+                leading: Text(c.emoji, style: const TextStyle(fontSize: 20)),
+                title: Text(c.nombre),
+                trailing: const Icon(Icons.edit_outlined),
+                onTap: () => _editar(c),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }

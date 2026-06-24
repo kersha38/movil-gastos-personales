@@ -40,6 +40,27 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	}
 	svc := dynamodb.NewFromConfig(cfg)
 
+	gastoIDForGet, _ := attributevalue.Marshal(gastoID)
+	getResult, err := svc.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: strPtr(os.Getenv("GASTOS_TABLE")),
+		Key: map[string]types.AttributeValue{
+			"gastoId": gastoIDForGet,
+		},
+	})
+	if err != nil {
+		return shared.ErrResponse(500, "error fetching gasto")
+	}
+	if getResult.Item == nil {
+		return shared.ErrResponse(404, "gasto not found")
+	}
+	var gasto shared.Gasto
+	if err := attributevalue.UnmarshalMap(getResult.Item, &gasto); err != nil {
+		return shared.ErrResponse(500, "error unmarshalling gasto")
+	}
+	if body.VerificadoPor == gasto.PagadorID {
+		return shared.ErrResponse(403, "quien pagó el gasto no puede verificarlo")
+	}
+
 	verificadoVal, _ := attributevalue.Marshal(body.Verificado)
 	verificadoPorVal, _ := attributevalue.Marshal(body.VerificadoPor)
 	gastoIDVal, _ := attributevalue.Marshal(gastoID)

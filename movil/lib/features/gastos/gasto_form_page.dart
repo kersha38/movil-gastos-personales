@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/date_formatter.dart';
 import '../../data/models/categoria.dart';
 import '../../data/models/gasto.dart';
 import '../../data/models/participante.dart';
@@ -57,10 +58,12 @@ class _GastoFormPageState extends State<GastoFormPage> {
   double _porcentaje1 = 50;
   bool _esRecurrente = false;
   bool _perteneceAlSri = false;
+  late DateTime _fecha;
 
   @override
   void initState() {
     super.initState();
+    _fecha = widget.gastoExistente?.timestamp.toLocal() ?? DateTime.now();
     _montoController.addListener(_onMontoTotalChanged);
     _cargarDatos();
   }
@@ -175,6 +178,26 @@ class _GastoFormPageState extends State<GastoFormPage> {
     _sincronizandoMontos = false;
   }
 
+  Future<void> _seleccionarFecha() async {
+    final seleccionada = await showDatePicker(
+      context: context,
+      initialDate: _fecha,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (seleccionada == null) return;
+    setState(() {
+      _fecha = DateTime(
+        seleccionada.year,
+        seleccionada.month,
+        seleccionada.day,
+        _fecha.hour,
+        _fecha.minute,
+        _fecha.second,
+      );
+    });
+  }
+
   Future<void> _mostrarDialogNuevaCategoria() async {
     _nuevaCategoriaController.clear();
     _nuevaCategoriaEmojiController.text = emojiPorDefecto;
@@ -284,7 +307,7 @@ class _GastoFormPageState extends State<GastoFormPage> {
         porcentajeParticipante2: _esCompartido ? _porcentaje2 : 0,
         esRecurrente: _esRecurrente,
         perteneceAlSri: _perteneceAlSri,
-        timestamp: widget.gastoExistente?.timestamp ?? DateTime.now(),
+        timestamp: _fecha,
         verificado: widget.gastoExistente?.verificado ?? false,
         verificadoPor: widget.gastoExistente?.verificadoPor,
       );
@@ -393,6 +416,16 @@ class _GastoFormPageState extends State<GastoFormPage> {
                         (v == null || v.trim().isEmpty)
                             ? 'Ingresa una descripción'
                             : null,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.calendar_today_outlined),
+                      title: const Text('Fecha'),
+                      subtitle: Text(formatearFechaLarga(_fecha)),
+                      trailing: const Icon(Icons.edit_outlined),
+                      onTap: _seleccionarFecha,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Row(
