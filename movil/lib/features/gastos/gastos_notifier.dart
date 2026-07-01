@@ -94,6 +94,12 @@ class GastosNotifier extends ChangeNotifier {
     await cargar();
   }
 
+  Future<void> eliminarGasto(String id) async {
+    await _repo.eliminarGasto(id);
+    gastos.removeWhere((g) => g.id == id);
+    notifyListeners();
+  }
+
   Future<void> eliminarTransferencia(String id) async {
     await _trRepo.eliminarTransferencia(id);
     transferencias.removeWhere((t) => t.id == id);

@@ -21,16 +21,90 @@ class _ResumenPageState extends State<ResumenPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => widget.notifier.cargar());
   }
 
+  Future<void> _mostrarFiltroCategorias() async {
+    final notifier = widget.notifier;
+    if (notifier.categoriasDisponibles.isEmpty) return;
+
+    var seleccion = Set<String>.from(notifier.categoriasFiltro);
+    final resultado = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Filtrar por categoría',
+                        style: Theme.of(ctx).textTheme.titleMedium),
+                    TextButton(
+                      onPressed: () => setSheetState(() => seleccion.clear()),
+                      child: const Text('Limpiar'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: notifier.categoriasDisponibles.map((c) {
+                    final activo = seleccion.contains(c.categoriaId);
+                    return FilterChip(
+                      label: Text(
+                        '${c.categoriaNombre}  \$${c.total.toStringAsFixed(0)}',
+                      ),
+                      selected: activo,
+                      onSelected: (v) => setSheetState(() {
+                        if (v) {
+                          seleccion.add(c.categoriaId);
+                        } else {
+                          seleccion.remove(c.categoriaId);
+                        }
+                      }),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, seleccion),
+                  child: const Text('Aplicar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (resultado != null) {
+      notifier.aplicarFiltro(resultado);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: widget.notifier,
-      builder: (context, _) {
+      builder: (ctx, _) {
         final notifier = widget.notifier;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Resumen'),
             actions: [
+              if (notifier.resumen != null)
+                IconButton(
+                  icon: Icon(
+                    notifier.filtroActivo
+                        ? Icons.filter_list
+                        : Icons.filter_list_outlined,
+                  ),
+                  tooltip: 'Filtrar por categoría',
+                  onPressed: _mostrarFiltroCategorias,
+                ),
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
                 tooltip: 'Configuración',
@@ -115,21 +189,26 @@ class _Body extends StatelessWidget {
     if (notifier.resumen == null) {
       return const Center(child: Text('Sin datos para este mes'));
     }
-    return _ResumenContent(resumen: notifier.resumen!);
+    return _ResumenContent(notifier: notifier);
   }
 }
 
 class _ResumenContent extends StatelessWidget {
-  final Resumen resumen;
+  final ResumenNotifier notifier;
 
-  const _ResumenContent({required this.resumen});
+  const _ResumenContent({required this.notifier});
 
   @override
   Widget build(BuildContext context) {
+    final resumen = notifier.resumen!;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
-        _TotalCard(total: resumen.totalMes),
+        _TotalCard(
+          total: notifier.totalFiltrado,
+          filtroActivo: notifier.filtroActivo,
+          numCategorias: notifier.categoriasFiltro.length,
+        ),
         const SizedBox(height: AppSpacing.sm),
         _DeudaCard(balance: resumen.balance),
         const SizedBox(height: AppSpacing.sm),
@@ -146,8 +225,14 @@ class _ResumenContent extends StatelessWidget {
 
 class _TotalCard extends StatelessWidget {
   final double total;
+  final bool filtroActivo;
+  final int numCategorias;
 
-  const _TotalCard({required this.total});
+  const _TotalCard({
+    required this.total,
+    required this.filtroActivo,
+    required this.numCategorias,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +246,9 @@ class _TotalCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Total del mes',
+              filtroActivo
+                  ? 'Total filtrado ($numCategorias ${numCategorias == 1 ? 'categoría' : 'categorías'})'
+                  : 'Total del mes',
               style: tt.labelLarge?.copyWith(color: cs.onPrimaryContainer),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -172,6 +259,15 @@ class _TotalCard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            if (filtroActivo) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'El saldo y desglose muestran el mes completo',
+                style: tt.bodySmall?.copyWith(
+                  color: cs.onPrimaryContainer.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
           ],
         ),
       ),

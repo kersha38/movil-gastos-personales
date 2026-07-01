@@ -33,4 +33,8 @@ class GastosRepository {
       'verificadoPor': verificadoPor,
     });
   }
+
+  Future<void> eliminarGasto(String id) async {
+    await _client.delete('/gastos/$id');
+  }
 }

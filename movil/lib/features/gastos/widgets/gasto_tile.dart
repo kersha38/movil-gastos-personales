@@ -7,15 +7,19 @@ import '../../../data/models/gasto.dart';
 class GastoTile extends StatelessWidget {
   final Gasto gasto;
   final String miParticipanteId;
+  final String? emoji;
   final Future<void> Function(bool verificado)? onVerificar;
   final VoidCallback? onTap;
+  final VoidCallback? onEliminar;
 
   const GastoTile({
     super.key,
     required this.gasto,
     this.miParticipanteId = '',
+    this.emoji,
     this.onVerificar,
     this.onTap,
+    this.onEliminar,
   });
 
   bool get _puedeVerificar =>
@@ -29,27 +33,29 @@ class GastoTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    final inicial = gasto.categoriaNombre.isNotEmpty
-        ? gasto.categoriaNombre[0].toUpperCase()
-        : '?';
+    final hasEmoji = emoji != null && emoji!.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
           leading: CircleAvatar(
-            backgroundColor: gasto.verificado
-                ? cs.tertiaryContainer
-                : cs.primaryContainer,
-            child: Text(
-              inicial,
-              style: TextStyle(
-                color: gasto.verificado
-                    ? cs.onTertiaryContainer
-                    : cs.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            backgroundColor: hasEmoji
+                ? cs.surfaceContainerHighest
+                : (gasto.verificado ? cs.tertiaryContainer : cs.primaryContainer),
+            child: hasEmoji
+                ? Text(emoji!, style: const TextStyle(fontSize: 20))
+                : Text(
+                    gasto.categoriaNombre.isNotEmpty
+                        ? gasto.categoriaNombre[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      color: gasto.verificado
+                          ? cs.onTertiaryContainer
+                          : cs.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
           title: Text(gasto.descripcion, style: tt.bodyLarge),
           subtitle: Text(
@@ -80,6 +86,7 @@ class GastoTile extends StatelessWidget {
             ],
           ),
           onTap: onTap,
+          onLongPress: onEliminar != null ? () => _confirmarEliminar(context) : null,
         ),
         Container(
           width: double.infinity,
@@ -132,6 +139,32 @@ class GastoTile extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  void _confirmarEliminar(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error),
+                title: const Text('Eliminar gasto'),
+                subtitle: const Text('Esta acción no se puede deshacer'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onEliminar!();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
